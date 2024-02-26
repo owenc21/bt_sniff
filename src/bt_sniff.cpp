@@ -242,6 +242,16 @@ static void process_ad(hci_le_meta_ear_event_t *event){
     while(data_size > 0){
         printf("AD_LENGTH: %u\nAD_TYPE: %02x\n", ad_data->length, ad_data->type);
 
+		/* Important: there is a name */
+        if(ad_data->type == 0x09){
+            int name_length = (int)(ad_data->length - 1);
+            std::string name;
+            for(int i=0; i<name_length; i++){
+                name.push_back((char)ad_data->data[i]);
+            }
+            std::cout << "DEVICE NAME: " << name << std::endl;
+        }
+
         data_size -= (int)((ad_data->length) + 1);
         ad_data = (ad_data_t*)((void*)ad_data + (int)(ad_data->length + 1)); // OMG UGLY!!
     }
