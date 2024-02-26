@@ -5,6 +5,7 @@
 #ifndef BT_SNIFF
 #define BT_SNIFF
 
+#include <string>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
@@ -19,7 +20,7 @@ public:
     /**
      * @brief Starts the capture loop
     */
-    int startCapture();
+    int start_le_scan();
     
     /**
      * @brief Stops the capture loop
@@ -89,9 +90,9 @@ private:
     uint8_t filter_policy;
 
     /**
-     * @brief Inner function that sets the socket to start capturing BLE packets
+     * @brief HCI command issuing implementation
     */
-    int set_capture();
+    int send_cmd(const std::string& cmd_str);
 
     /**
      * @brief Inner function that initializes and binds the socket and sets data fields

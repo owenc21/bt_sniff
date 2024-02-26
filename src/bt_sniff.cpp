@@ -1,4 +1,8 @@
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <iomanip>
+#include <vector>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <bluetooth/bluetooth.h>
@@ -6,6 +10,7 @@
 #include <bluetooth/hci_lib.h>
 
 #include "bt_sniff.hpp"
+#include "bluetoothdef.hpp"
 
 BT_Sniff::BT_Sniff()
     : device_id(-1), socket_fd(-1), scan_type(0x01), interval(0x0010),
@@ -64,54 +69,6 @@ void BT_Sniff::set_scan_parameters(u_int8_t type, uint16_t inter,
     filter_policy = filter;
 }
 
-int BT_Sniff::set_capture(){
-    /**
-     * Sets the Bluetooth socket to capture BLE Advertising packets
-     * Initializes necessary filter
-     * 
-     * @returns: 0 on success, -1 on failure
-    */
-
-   /* Attempt to reset controller */
-   if(reset_controller() < 0) return -1;
-
-    struct hci_filter filter;
-
-    /* Initializes empty filter, sets packet type capture to all hardware, capturs BLE meta events */
-        /**
-     * TODO: Look into other filters
-    */
-    hci_filter_clear(&filter);
-    hci_filter_set_ptype(HCI_EVENT_PKT, &filter); 
-    hci_filter_all_events(&filter);
-
-    /* Apply filter */
-    if(setsockopt(socket_fd, SOL_HCI, HCI_FILTER, &filter, sizeof(filter)) < 0){
-        std::cerr << "Error setting packet types and event filter on socket" << std::endl <<
-            errno << std::endl; 
-        return -1;
-    }
-
-    /* Set scan parameters and enable LE scan */
-    // if(hci_le_set_scan_parameters(socket_fd, scan_type, interval,
-    //     window, own_address, filter_policy, 1000) < 0){
-    //     std::cerr << "Error setting LE scan parameters" << std::endl <<
-    //         errno << std::endl;
-
-    //     return -1;
-    // }
-
-    // if(hci_le_set_scan_enable(socket_fd, 0x01, 0x01, 1000) < 0){
-    //     std::cerr << "Error enabling HCI LE scan" << std::endl <<
-    //         errno << std::endl;
-
-    //     return -1;
-    // }
-
-    scan_ready = true;
-    return 0;
-}
-
 int BT_Sniff::initialize(){
     /**
      * Initializes relevant fields for BT_Sniff object
@@ -140,10 +97,28 @@ int BT_Sniff::initialize(){
         return -1;
     }
 
+    /* Configure to capture all packets and events */
+    struct hci_filter filter;
+    hci_filter_clear(&filter);
+    hci_filter_all_ptypes(&filter);
+    hci_filter_all_events(&filter);
+
+    /* Apply filter */
+    if(setsockopt(socket_fd, SOL_HCI, HCI_FILTER, &filter, sizeof(filter)) < 0){
+        std::cerr << "Error applying HCI filter on socket" << std::endl <<
+            errno << std::endl;
+        return -1;
+    }
+
+    /**
+     * TODO: Add setsockopt() calls to enable timestamping and HCI directionality
+    */
+
     /* Bind socket with the bluetooth device */
     struct sockaddr_hci addr = {};
     addr.hci_family = AF_BLUETOOTH;
     addr.hci_dev =  device_id;
+    addr.hci_channel = HCI_CHANNEL_RAW;
     if(bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0){
         close(socket_fd);
         std::cerr << "Error binding socket to device" << std::endl <<
@@ -151,37 +126,76 @@ int BT_Sniff::initialize(){
         return -1;
     }
 
-    /**
-     * It's worth noting that the above process is handled by an API wrapper:
-     * hci_open_dev, but I'm interested in learning socket programming on an
-     * intimate level so I'm opening the socket and binding it myself
-    */
-
     return 0;
 }
 
-int BT_Sniff::reset_controller(){
+static std::string addr_to_str(const uint8_t *addr){
     /**
-     * To prevent I/O Errors, bluetooth controller is reset
-     * Resets the device binded to the raw socket
+     * Utility function to convert the address array into
+     * human-readable string (big endian)
      * 
-     * @returns 0 on success, -1 on error 
+     * @param addr  The uint8_t address array
     */
 
-    uint16_t ogf = 0x03; // Link OGF
-    uint16_t ocf = 0x0003; // "Reset" command
-    uint8_t plen = 0; // Length
+    std::stringstream ss;
 
-    if(hci_send_cmd(socket_fd, ogf, ocf, plen, NULL) < 0){
-        std::cerr << "Error resetting the Bluetooth controller" << std::endl <<
-            errno << std::endl;
-        return -1;
+    ss << std::hex << std::setfill('0');
+
+    for(int i=5; i>=0; i--){
+        ss << std::hex << std::setw(2) << static_cast<int>(addr[i]);
     }
 
-    return 0;
+    return ss.str();
 }
 
-int BT_Sniff::startCapture(){
+static std::string event_type(uint16_t event_type){
+    /**
+     * Utility funciton to convert event_type field
+     * into human readable string
+     * 
+     * @param event_type    the uint16_t event_type field
+    */
+
+    std::string event_str;
+    switch(event_type){
+        case 0b0010011:
+            event_str = "ADV_IND";
+            break;
+        case 0b0010101:
+            event_str = "ADV_DIRECT_IND";
+            break;
+        case 0b0010010:
+            event_str = "ADV_SCAN_IND";
+            break;
+        case 0b0010000:
+            event_str = "ADV_NONCONN_IND";
+            break;
+        case 0b0011011:
+            event_str = "SCAN_RSP to an ADV_IND";
+            break;
+        case 0b0011010:
+            event_str = "SCAN_RSP to an ADV_SCAN_IND";
+            break;
+        default:
+            event_str = "EVENT TYPE NOT FOUND";
+            break;
+    }
+
+    return event_str;
+}
+
+static void print_extended_advertising_report(hci_le_meta_ear_event_t *event){
+    /**
+     * Uitlity funciton to print information about the extended advertising report
+     * 
+     * @param event Pointer to the hci_le_meta_era_event_t
+    */
+
+    std::cout << "Event type: " << event_type(event->event_type) << std::endl;
+    std::cout << "Address: " << addr_to_str(event->address.address) << std::endl;
+}
+
+int BT_Sniff::start_le_scan(){
     /**
      * Begins capturing loop in separate process
      * Does NOT process packet (yet)
@@ -189,10 +203,6 @@ int BT_Sniff::startCapture(){
      * 
      * @returns 0 on successful capture loop completion, -1 on error
     */
-
-    if(set_capture() < 0){
-        return -1;
-    }
 
     unsigned char buf[HCI_MAX_EVENT_SIZE];
     while(true){
@@ -203,12 +213,25 @@ int BT_Sniff::startCapture(){
         return -1;
        }
 
-       if(buf[0] == HCI_EVENT_PKT)
-    //    evt_le_meta_event *meta_event = (evt_le_meta_event*)(buf + HCI_EVENT_HDR_SIZE + 1);
-    //    printf("Subevent: 0x%02X\n", meta_event->subevent);
-       
-       
-       std::cout << "Raw Packet Data: ";
+        std::cout << "Packet type: " << std::hex << (unsigned int)buf[0] << std::endl;
+
+        if((unsigned int)buf[0] == HCI_PACK_EVENT){
+            hci_pack_event_head_t *packet = (hci_pack_event_head_t *)(buf + 1);
+
+            if(packet->event_code == HCI_EVENT_LE_META){
+                hci_le_meta_ear_t *meta = (hci_le_meta_ear_t*)packet->data;
+
+                hci_le_meta_ear_event_t *event = (hci_le_meta_ear_event_t*)meta->event_start;
+
+                for(uint8_t i=0; i<meta->num_reports; ++i){
+                    printf("Report %u: \n", i);
+                    print_extended_advertising_report(event);
+                    event = event + sizeof(event);
+                }
+            }
+        }
+
+       std::cout << std::endl << "Raw packet data: " << std::endl;
        for (int i = 0; i < len; i++) {
             printf("%02x ", (unsigned int)buf[i]);
         }
