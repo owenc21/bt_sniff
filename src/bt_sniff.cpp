@@ -8,7 +8,7 @@
 #include "bt_sniff.hpp"
 
 BT_Sniff::BT_Sniff()
-    : device_id(-1), socket_fd(-1), scan_type(0x00), interval(0x0010),
+    : device_id(-1), socket_fd(-1), scan_type(0x01), interval(0x0010),
     window(0x0010), own_address(0x00), filter_policy(0x00), initialized(false),
     is_scanning(false), scan_ready(false), bdaddr(nullptr)
 {
@@ -16,7 +16,7 @@ BT_Sniff::BT_Sniff()
      * Constructor for BT_Sniff object
      * Calls private initialize function upoin initilization
      * Defaults scan parameters to
-     *      Passing scanning (scan_type 0x00)
+     *      Active scanning (scan_type 0x01)
      *      10 ms interval
      *      10 ms scan window
      *      Public addressing
@@ -78,12 +78,12 @@ int BT_Sniff::set_capture(){
     struct hci_filter filter;
 
     /* Initializes empty filter, sets packet type capture to all hardware, capturs BLE meta events */
-    /**
+        /**
      * TODO: Look into other filters
     */
     hci_filter_clear(&filter);
     hci_filter_set_ptype(HCI_EVENT_PKT, &filter); 
-    hci_filter_set_event(EVT_LE_META_EVENT, &filter);
+    hci_filter_all_events(&filter);
 
     /* Apply filter */
     if(setsockopt(socket_fd, SOL_HCI, HCI_FILTER, &filter, sizeof(filter)) < 0){
@@ -93,20 +93,20 @@ int BT_Sniff::set_capture(){
     }
 
     /* Set scan parameters and enable LE scan */
-    if(hci_le_set_scan_parameters(socket_fd, scan_type, interval,
-        window, own_address, filter_policy, 1000) < 0){
-        std::cerr << "Error setting LE scan parameters" << std::endl <<
-            errno << std::endl;
+    // if(hci_le_set_scan_parameters(socket_fd, scan_type, interval,
+    //     window, own_address, filter_policy, 1000) < 0){
+    //     std::cerr << "Error setting LE scan parameters" << std::endl <<
+    //         errno << std::endl;
 
-        return -1;
-    }
+    //     return -1;
+    // }
 
-    if(hci_le_set_scan_enable(socket_fd, 0x01, 0x01, 1000)){
-        std::cerr << "Error enabling HCI LE scan" << std::endl <<
-            errno << std::endl;
+    // if(hci_le_set_scan_enable(socket_fd, 0x01, 0x01, 1000) < 0){
+    //     std::cerr << "Error enabling HCI LE scan" << std::endl <<
+    //         errno << std::endl;
 
-        return -1;
-    }
+    //     return -1;
+    // }
 
     scan_ready = true;
     return 0;
@@ -203,8 +203,17 @@ int BT_Sniff::startCapture(){
         return -1;
        }
 
-       std::cout << "len: " << len << std::endl;
-       std::cout << buf << std::endl;
+       if(buf[0] == HCI_EVENT_PKT)
+    //    evt_le_meta_event *meta_event = (evt_le_meta_event*)(buf + HCI_EVENT_HDR_SIZE + 1);
+    //    printf("Subevent: 0x%02X\n", meta_event->subevent);
+       
+       
+       std::cout << "Raw Packet Data: ";
+       for (int i = 0; i < len; i++) {
+            printf("%02x ", (unsigned int)buf[i]);
+        }
+        std::cout << std::endl; 
+        
     }
 }
 

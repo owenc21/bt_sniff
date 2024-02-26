@@ -9,6 +9,8 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
+#include "bluetoothdef.hpp"
+
 class BT_Sniff{
 public:
     BT_Sniff();

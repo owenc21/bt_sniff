@@ -3,6 +3,7 @@ add_library(
     STATIC
     src/bt_sniff.hpp
     src/bt_sniff.cpp
+    src/bluetoothdef.hpp
 )
 
 target_link_libraries(bt_sniff PRIVATE bluetooth)
