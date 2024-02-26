@@ -7,7 +7,7 @@
 #include "bluetoothdef.hpp"
 #include "utils.hpp"
 
-static std::string addr_to_str(const uint8_t *addr){
+std::string addr_to_str(const uint8_t *addr){
     /**
      * Utility function to convert the address array into
      * human-readable string (big endian)
@@ -31,7 +31,7 @@ static std::string addr_to_str(const uint8_t *addr){
     return address;
 }
 
-static std::string event_type(uint16_t event_type){
+std::string event_type(uint16_t event_type){
     /**
      * Utility funciton to convert event_type field
      * into human readable string
@@ -67,7 +67,7 @@ static std::string event_type(uint16_t event_type){
     return event_str;
 }
 
-static std::string addr_type(uint8_t addr_type){
+std::string addr_type(uint8_t addr_type){
     /**
      * Utility function to convert address type field
      * into human-readable string
@@ -101,7 +101,7 @@ static std::string addr_type(uint8_t addr_type){
     return addr_type_str;
 }
 
-static void process_ad(hci_le_meta_ear_event_t *event){
+void process_ad(hci_le_meta_ear_event_t *event){
     /**
      * Utility funciton to process the advertising data porition of
      * the packet
@@ -130,11 +130,11 @@ static void process_ad(hci_le_meta_ear_event_t *event){
         }
 
         data_size -= (int)((ad_data->length) + 1);
-        ad_data = (ad_data_t*)((void*)ad_data + (int)(ad_data->length + 1)); // OMG UGLY!!
+        ad_data = (ad_data_t*)((char*)ad_data + (int)(ad_data->length + 1)); // OMG UGLY!!
     }
 }
 
-static void print_extended_advertising_report(hci_le_meta_ear_event_t *event){
+void print_extended_advertising_report(hci_le_meta_ear_event_t *event){
     /**
      * Uitlity funciton to print information about the extended advertising report
      * 
