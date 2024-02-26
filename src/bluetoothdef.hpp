@@ -20,6 +20,19 @@ typedef struct{
 	uint8_t address[6];
 } __attribute__ ((packed)) bt_dev_addr_t;
 
+/**
+ * @details
+ * Typedef to store Advertising/Scan Response Data
+ * @param length	Length (in octets) of AD_type + AD_data
+ * @param type		AD Type
+ * @param data		AD data
+*/
+typedef struct{
+	uint8_t length;
+	uint8_t type;
+	uint8_t data[];
+} __attribute__ ((packed)) ad_data_t;
+
 /* Bluetooth Core Specifications, Version 5.3, Vol 4, Parte E */
 
 /* Raw HCI Packet Types */

@@ -2,6 +2,7 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <algorithm>
 #include <vector>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -143,9 +144,14 @@ static std::string addr_to_str(const uint8_t *addr){
 
     for(int i=5; i>=0; i--){
         ss << std::hex << std::setw(2) << static_cast<int>(addr[i]);
+        ss << ":";
     }
 
-    return ss.str();
+    std::string address = ss.str();
+    address.pop_back();
+    std::transform(address.begin(), address.end(), address.begin(), toupper);
+    
+    return address;
 }
 
 static std::string event_type(uint16_t event_type){
@@ -184,6 +190,63 @@ static std::string event_type(uint16_t event_type){
     return event_str;
 }
 
+static std::string addr_type(uint8_t addr_type){
+    /**
+     * Utility function to convert address type field
+     * into human-readable string
+     * 
+     * @param addr_type     uint8_t representing the address type
+    */
+
+    std::string addr_type_str;
+
+    switch(addr_type){
+        case 0x00:
+            addr_type_str = "Public";
+            break;
+        case 0x01:
+            addr_type_str = "Random";
+            break;
+        case 0x02:
+            addr_type_str = "Public Identity";
+            break;
+        case 0x03:
+            addr_type_str = "Random (static)";
+            break;
+        case 0xFF:
+            addr_type_str = "None (anonymous)";
+            break;
+        default:
+            addr_type_str = "UNKOWN ADDRESS TYPE";
+            break;
+    }
+    
+    return addr_type_str;
+}
+
+static void process_ad(hci_le_meta_ear_event_t *event){
+    /**
+     * Utility funciton to process the advertising data porition of
+     * the packet
+     * 
+     * @param event Pointer to the hci_le_meta_era_event_t
+    */
+
+    int data_size = (int) event->data_length;
+    if(data_size <= 0) return;
+
+    printf("TOTAL_DATA_LENGTH: %d\n", data_size);
+
+    /* Iterate over all AD payloads */
+    ad_data_t *ad_data = (ad_data_t*)event->data;
+    while(data_size > 0){
+        printf("AD_LENGTH: %u\nAD_TYPE: %02x\n", ad_data->length, ad_data->type);
+
+        data_size -= (int)((ad_data->length) + 1);
+        ad_data = (ad_data_t*)((void*)ad_data + (int)(ad_data->length + 1)); // OMG UGLY!!
+    }
+}
+
 static void print_extended_advertising_report(hci_le_meta_ear_event_t *event){
     /**
      * Uitlity funciton to print information about the extended advertising report
@@ -193,6 +256,9 @@ static void print_extended_advertising_report(hci_le_meta_ear_event_t *event){
 
     std::cout << "Event type: " << event_type(event->event_type) << std::endl;
     std::cout << "Address: " << addr_to_str(event->address.address) << std::endl;
+    std::cout << "Address Type: " << addr_type(event->address_type) << std::endl;
+    process_ad(event);
+    std::cout << std::endl;
 }
 
 int BT_Sniff::start_le_scan(){
@@ -213,8 +279,10 @@ int BT_Sniff::start_le_scan(){
         return -1;
        }
 
-        std::cout << "Packet type: " << std::hex << (unsigned int)buf[0] << std::endl;
-
+        /**
+         * Manual filtering of HCI_EVENT_LE_META 
+         * TODO: Add advanced filtering logic
+        */
         if((unsigned int)buf[0] == HCI_PACK_EVENT){
             hci_pack_event_head_t *packet = (hci_pack_event_head_t *)(buf + 1);
 
@@ -224,18 +292,17 @@ int BT_Sniff::start_le_scan(){
                 hci_le_meta_ear_event_t *event = (hci_le_meta_ear_event_t*)meta->event_start;
 
                 for(uint8_t i=0; i<meta->num_reports; ++i){
-                    printf("Report %u: \n", i);
                     print_extended_advertising_report(event);
                     event = event + sizeof(event);
                 }
             }
         }
 
-       std::cout << std::endl << "Raw packet data: " << std::endl;
-       for (int i = 0; i < len; i++) {
-            printf("%02x ", (unsigned int)buf[i]);
-        }
-        std::cout << std::endl; 
+    //    std::cout << std::endl << "Raw packet data: " << std::endl;
+    //    for (int i = 0; i < len; i++) {
+    //         printf("%02x ", (unsigned int)buf[i]);
+    //     }
+    //     std::cout << std::endl; 
         
     }
 }
