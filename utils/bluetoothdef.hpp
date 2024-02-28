@@ -6,6 +6,19 @@
 #define BLUETOOTHDEF
 
 /**
+ * @details
+ * Struct to encapsulate the processed advertising event
+ * @param event	Processed string describing event (PDU)
+ * @param addresss	Processed string of the device address (: sep Hex)
+ * @param name	Device name (optional), emptystring if not present
+*/
+typedef struct{
+    std::string event;
+    std::string address;
+    std::string name;
+} processed_adv_event;
+
+/**
  * TODO:
  * Move HCI definitions into separate file
 */
@@ -32,6 +45,7 @@ typedef struct{
 	uint8_t type;
 	uint8_t data[];
 } __attribute__ ((packed)) ad_data_t;
+
 
 /* Bluetooth Core Specifications, Version 5.3, Vol 4, Parte E */
 
@@ -77,6 +91,16 @@ typedef struct{
 #define SUBEVT_HCI_LE_SCAN_TIMEOUT	0x11
 #define SUBEVT_HCI_LE_ADVERTISING_SET_TERMINATED	0x12
 #define SUBEVT_HCI_LE_SCAN_REQUEST_RECEIVED		0x13
+
+/* LE Extended Advertising Report Legacy PDUs */
+enum LE_EAR_LEG_PDU{
+	ADV_IND = 0b0010011,
+	ADV_DIRECT_IND = 0b0010101,
+	ADV_SCAN_IND = 0b0010010,
+	ADV_NONCONN_IND = 0b0010000,
+	SCAN_RSP_TO_ADV_IND = 0b0011011,
+	SCAN_RSP_TO_ADV_SCAN_IND = 0b0011010
+};
 
 /**
  * @details

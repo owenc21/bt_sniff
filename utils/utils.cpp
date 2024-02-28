@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <sstream>
 #include <algorithm>
+#include <memory>
 
 #include "bluetoothdef.hpp"
 #include "utils.hpp"
@@ -41,22 +42,22 @@ std::string event_type(uint16_t event_type){
 
     std::string event_str;
     switch(event_type){
-        case 0b0010011:
+        case ADV_IND:
             event_str = "ADV_IND";
             break;
-        case 0b0010101:
+        case ADV_DIRECT_IND:
             event_str = "ADV_DIRECT_IND";
             break;
-        case 0b0010010:
+        case ADV_SCAN_IND:
             event_str = "ADV_SCAN_IND";
             break;
-        case 0b0010000:
+        case ADV_NONCONN_IND:
             event_str = "ADV_NONCONN_IND";
             break;
-        case 0b0011011:
+        case SCAN_RSP_TO_ADV_IND:
             event_str = "SCAN_RSP to an ADV_IND";
             break;
-        case 0b0011010:
+        case SCAN_RSP_TO_ADV_SCAN_IND:
             event_str = "SCAN_RSP to an ADV_SCAN_IND";
             break;
         default:
@@ -101,23 +102,36 @@ std::string addr_type(uint8_t addr_type){
     return addr_type_str;
 }
 
-void process_ad(hci_le_meta_ear_event_t *event){
+void process_ad(hci_le_meta_ear_event_t *event, const bool& verbose){
     /**
      * Utility funciton to process the advertising data porition of
      * the packet
      * 
      * @param event Pointer to the hci_le_meta_era_event_t
+     * @param verbose Boolean flag indicating whether to print AD details
     */
 
     int data_size = (int) event->data_length;
     if(data_size <= 0) return;
 
-    printf("TOTAL_DATA_LENGTH: %d\n", data_size);
-
     /* Iterate over all AD payloads */
     ad_data_t *ad_data = (ad_data_t*)event->data;
     while(data_size > 0){
-        printf("AD_LENGTH: %u\nAD_TYPE: %02x\n", ad_data->length, ad_data->type);
+        /* Flags */
+        /* For now, only worry about flags in verbose mode */
+        if(ad_data->type == 0x01 && verbose){
+            uint8_t flag = event->data[0];
+            std::cout << "FLAGS: " << std::endl;
+            if(flag & 0x01) std::cout << "LE Limited Discoverable Mode" << std::endl;
+            flag >>= 1;
+            if(flag & 0x01) std::cout << "LE General Discoverable Mode" << std::endl;
+            flag >>= 1;
+            if(flag & 0x01) std::cout << "BR/EDR Not Supported" << std::endl;
+            flag >>= 1;
+            if(flag & 0x01) std::cout << "Simultaneous LE and BR/EDR" << std::endl;
+            flag >>= 1;
+            if(flag & 0x01) std::cout << "Previously Used" << std::endl;
+        }
 
 		/* Important: there is a name */
         if(ad_data->type == 0x09){
@@ -134,16 +148,22 @@ void process_ad(hci_le_meta_ear_event_t *event){
     }
 }
 
-void print_extended_advertising_report(hci_le_meta_ear_event_t *event){
+void process_extended_advertising_report(
+    hci_le_meta_ear_event_t *event, std::shared_ptr<processed_adv_event> usr_evt, const bool& verbose){
     /**
      * Uitlity funciton to print information about the extended advertising report
      * 
      * @param event Pointer to the hci_le_meta_era_event_t
     */
 
-    std::cout << "Event type: " << event_type(event->event_type) << std::endl;
-    std::cout << "Address: " << addr_to_str(event->address.address) << std::endl;
-    std::cout << "Address Type: " << addr_type(event->address_type) << std::endl;
+    std::string evt_type = event_type(event->event_type);
+    std::string addr = addr_to_str(event->address.address);
+
+    if(verbose){
+        std::cout << "Event type: " << evt_type << std::endl;
+        std::cout << "Address: " << addr << std::endl;
+        std::cout << "Address Type: " << addr_type(event->address_type) << std::endl;
+    }
     process_ad(event);
     std::cout << std::endl;
 }

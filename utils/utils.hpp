@@ -6,6 +6,7 @@
 #define BT_UTILS
 
 #include <string>
+#include <memory>
 
 #include "bluetoothdef.hpp"
 
@@ -35,8 +36,11 @@ void process_ad(hci_le_meta_ear_event_t *event);
 
 /**
  * @brief
- * Print all necessary fields for the HCI_LE_META_EXTENDED_ADVERTISEMENT_RESPONSE_EVENT
+ * Process HCI_LE_META_EXTENDED_ADVERTSEMENT_RESPOSNE_EVENT packet
+ * Pack processed data into user-space struc
+ * Option to enable printing (verbose)
 */
-void print_extended_advertising_report(hci_le_meta_ear_event_t *event);
+void process_extended_advertising_report(
+	hci_le_meta_ear_event_t *event, std::shared_ptr<processed_adv_event> evt, const bool& verbose);
 
 #endif

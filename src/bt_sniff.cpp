@@ -15,19 +15,12 @@
 #include "utils.hpp"
 
 BT_Sniff::BT_Sniff()
-    : device_id(-1), socket_fd(-1), scan_type(0x01), interval(0x0010),
-    window(0x0010), own_address(0x00), filter_policy(0x00), initialized(false),
-    is_scanning(false), scan_ready(false), bdaddr(nullptr)
-{
+    : device_id(-1), socket_fd(-1), initialized(false),
+    is_scanning(false), scan_ready(false)
+    {
     /**
      * Constructor for BT_Sniff object
      * Calls private initialize function upoin initilization
-     * Defaults scan parameters to
-     *      Active scanning (scan_type 0x01)
-     *      10 ms interval
-     *      10 ms scan window
-     *      Public addressing
-     *      No filtering
     */
   
     int status = initialize();
@@ -51,26 +44,6 @@ BT_Sniff::~BT_Sniff(){
     }
 }
 
-void BT_Sniff::set_scan_parameters(u_int8_t type, uint16_t inter,
-    uint16_t win, uint8_t own_addr, uint8_t filter){
-    /**
-     * Wrapper function to set the data members corresponding
-     * to the scan parameters for BLE scan
-     * 
-     * @param type  uint8_t corresponding to scan type
-     * @param inter uint16_t corresponding to time between scan windows (ms)
-     * @param win   uint16_t corresponding to the duration of a scan window (ms)
-     * @param own_addr uint8_t corresponding to type of address used by scanner (0x00 - public, 0x01 - private)
-     * @param filter uint8_t corresponding to scan filter policy (0x00 - no filtering, 0x01 - whitelist)
-    */
-    if(type != 0x00 || type != 0x01) return;
-    scan_type = type;
-    interval = htobs(inter);
-    window = htobs(win);
-    own_address = own_addr;
-    filter_policy = filter;
-}
-
 int BT_Sniff::initialize(){
     /**
      * Initializes relevant fields for BT_Sniff object
@@ -88,8 +61,6 @@ int BT_Sniff::initialize(){
             errno << std::endl;
         return -1;
     }
-    memcpy(&this->bdaddr, &dev_info.bdaddr, sizeof(bdaddr_t));
-
 
     /* Need raw socket for sniffing; HCI is standard protocol */
     socket_fd = socket(AF_BLUETOOTH, SOCK_RAW | SOCK_CLOEXEC, BTPROTO_HCI);
@@ -132,12 +103,15 @@ int BT_Sniff::initialize(){
 }
 
 
-int BT_Sniff::start_le_scan(){
+int BT_Sniff::start_le_scan(
+    std::shared_ptr<processed_adv_event> usr_evt, const bool& verbose){
     /**
      * Begins capturing loop in separate process
      * Does NOT process packet (yet)
      * Does NOT utilizng any IPC (yet)
      * 
+     * @param usr_evt Pointer to processed_adv_event struct to populate for user-space analysis 
+     * @param verbose Boolean flag to enable packet capture from printing to stdout
      * @returns 0 on successful capture loop completion, -1 on error
     */
 
@@ -163,7 +137,11 @@ int BT_Sniff::start_le_scan(){
                 hci_le_meta_ear_event_t *event = (hci_le_meta_ear_event_t*)meta->event_start;
 
                 for(uint8_t i=0; i<meta->num_reports; ++i){
-                    print_extended_advertising_report(event);
+                    uint16_t evt = event->event_type;
+                    /* Manual filter of event PDU */
+                    if(evt!=ADV_NONCONN_IND && evt!=ADV_DIRECT_IND){
+                        process_extended_advertising_report(event, usr_evt, verbose);
+                    }
                     event = event + sizeof(event);
                 }
             }
