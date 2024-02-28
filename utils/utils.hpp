@@ -32,7 +32,8 @@ std::string addr_type(uint8_t addr_type);
  * @brief
  * Processes AD data in HCI_LE_META_EXTENDED_ADVERTISEMENT_RESPONSE_EVENT packet
 */
-void process_ad(hci_le_meta_ear_event_t *event);
+void process_ad(
+	hci_le_meta_ear_event_t *event, std::shared_ptr<processed_adv_event> usr_evt, const bool& verbose);
 
 /**
  * @brief
@@ -41,6 +42,6 @@ void process_ad(hci_le_meta_ear_event_t *event);
  * Option to enable printing (verbose)
 */
 void process_extended_advertising_report(
-	hci_le_meta_ear_event_t *event, std::shared_ptr<processed_adv_event> evt, const bool& verbose);
+	hci_le_meta_ear_event_t *event, std::shared_ptr<processed_adv_event> usr_evt, const bool& verbose);
 
 #endif

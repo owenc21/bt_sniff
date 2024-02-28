@@ -102,17 +102,21 @@ std::string addr_type(uint8_t addr_type){
     return addr_type_str;
 }
 
-void process_ad(hci_le_meta_ear_event_t *event, const bool& verbose){
+void process_ad(
+    hci_le_meta_ear_event_t *event, std::shared_ptr<processed_adv_event> usr_evt, const bool& verbose){
     /**
      * Utility funciton to process the advertising data porition of
      * the packet
      * 
      * @param event Pointer to the hci_le_meta_era_event_t
+     * @param usr_evt   Pointer to user-space event struct to add name to
      * @param verbose Boolean flag indicating whether to print AD details
     */
 
     int data_size = (int) event->data_length;
     if(data_size <= 0) return;
+
+    std::string name = "";
 
     /* Iterate over all AD payloads */
     ad_data_t *ad_data = (ad_data_t*)event->data;
@@ -136,24 +140,28 @@ void process_ad(hci_le_meta_ear_event_t *event, const bool& verbose){
 		/* Important: there is a name */
         if(ad_data->type == 0x09){
             int name_length = (int)(ad_data->length - 1);
-            std::string name;
             for(int i=0; i<name_length; i++){
                 name.push_back((char)ad_data->data[i]);
             }
-            std::cout << "DEVICE NAME: " << name << std::endl;
+            if(verbose) std::cout << "DEVICE NAME: " << name << std::endl;
         }
 
         data_size -= (int)((ad_data->length) + 1);
         ad_data = (ad_data_t*)((char*)ad_data + (int)(ad_data->length + 1)); // OMG UGLY!!
     }
+
+    usr_evt->name = name;
 }
 
 void process_extended_advertising_report(
     hci_le_meta_ear_event_t *event, std::shared_ptr<processed_adv_event> usr_evt, const bool& verbose){
     /**
      * Uitlity funciton to print information about the extended advertising report
+     * Updates the provided user-space struct with relevant information (name, address) 
      * 
      * @param event Pointer to the hci_le_meta_era_event_t
+     * @param usr_evt   Pointer to user-space event struct to populate with relevant information
+     * @param verbose   Boolean flag indicating whether advertising report info should be printed to stdout
     */
 
     std::string evt_type = event_type(event->event_type);
@@ -163,7 +171,12 @@ void process_extended_advertising_report(
         std::cout << "Event type: " << evt_type << std::endl;
         std::cout << "Address: " << addr << std::endl;
         std::cout << "Address Type: " << addr_type(event->address_type) << std::endl;
+        
+        std::cout << std::endl;
     }
-    process_ad(event);
-    std::cout << std::endl;
+
+    usr_evt->event = evt_type;
+    usr_evt->address = addr;
+
+    process_ad(event, usr_evt, verbose);
 }

@@ -132,7 +132,11 @@ int BT_Sniff::start_le_scan(
             hci_pack_event_head_t *packet = (hci_pack_event_head_t *)(buf + 1);
 
             if(packet->event_code == HCI_EVENT_LE_META){
+                /* Assuming the meta event will be an extended advertising report */
                 hci_le_meta_ear_t *meta = (hci_le_meta_ear_t*)packet->data;
+
+				/* Skip if not extended advertising report */
+                if(meta->subevent_code != SUBEVT_HCI_LE_EXTENDED_ADVERTISING_REPORT) continue;
 
                 hci_le_meta_ear_event_t *event = (hci_le_meta_ear_event_t*)meta->event_start;
 
