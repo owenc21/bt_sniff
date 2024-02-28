@@ -3,9 +3,6 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
-#include <vector>
-#include <queue>
-#include <atomic>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <bluetooth/bluetooth.h>
@@ -15,6 +12,7 @@
 #include "bt_sniff.hpp"
 #include "bluetoothdef.hpp"
 #include "utils.hpp"
+#include "event_queue.hpp"
 
 BT_Sniff::BT_Sniff()
     : device_id(-1), socket_fd(-1), initialized(false),
@@ -106,14 +104,14 @@ int BT_Sniff::initialize(){
 
 
 int BT_Sniff::start_le_scan(
-    event_queue& usr_queue, const bool& verbose, const bool& raw){
+    eventQueue& usr_queue, const bool& verbose, const bool& raw){
     /**
-     * Begins capturing loop in separate process
-     * Does NOT process packet (yet)
-     * Does NOT utilizng any IPC (yet)
+     * Begins capturing packets in scan loop
+     * Atomically enqueues processed data into provided user-space queue
      * 
-     * @param usr_queue Reference to (atomic) event_queue to enqueue pointers to
+     * @param usr_queue Reference to (atomic) eventQueue to enqueue pointers to
      * processed_adv_event structs
+     * @param lock  std::mutex reference to perform atomic queue actions
      * @param verbose Boolean flag to enable packet capture from printing to stdout
      * @param raw   Boolean flag to enable output of raw packet capture data
      * @returns 0 on successful capture loop completion, -1 on error
@@ -150,11 +148,7 @@ int BT_Sniff::start_le_scan(
                     /* Manual filter of event PDU */
                     if(evt!=ADV_NONCONN_IND && evt!=ADV_DIRECT_IND){
                         process_extended_advertising_report(event, usr_evt, verbose);
-                        
-                        /* Atomic queue require temp local queue to actually enqueue */
-                        non_atom_event_queue temp_queue = usr_queue.load();
-                        temp_queue.push(usr_evt);
-                        usr_queue.store(temp_queue);
+                        usr_queue.push(usr_evt);
                     }
                     event = event + sizeof(event);
                 }

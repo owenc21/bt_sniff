@@ -6,34 +6,12 @@
 #define BT_SNIFF
 
 #include <string>
-#include <memory>
-#include <atomic>
-#include <queue>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
 #include "bluetoothdef.hpp"
-
-/**
- * @details
- * Typedef of event queue that's used by scanning loop to
- * queue procsedded_adv_event objects
-*/
-typedef std::queue<std::shared_ptr<processed_adv_event>> non_atom_event_queue;
-
-/**
- * @details
- * Typedef of atomic (wrapper) queue that's used by scanning loop to queue
- * processed_adv_event objects to be consumed by user
- * 
- * There are libraries that implement much better lock-free queues,
- * but i have zero interest in bringing in an external library
- * for such a simple synchronizaiton-friendly,
- * single-producer/single-consumer queue lol
-*/
-typedef std::atomic<non_atom_event_queue> event_queue;
-
+#include "event_queue.hpp"
 
 class BT_Sniff{
 public:
@@ -43,7 +21,7 @@ public:
     /**
      * @brief Starts the capture loop
     */
-    int start_le_scan(event_queue& usr_queue, const bool& verbose, const bool& raw);
+    int start_le_scan(eventQueue& usr_queue, const bool& verbose, const bool& raw);
     
     /**
      * @brief Stops the capture loop

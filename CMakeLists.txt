@@ -10,6 +10,8 @@ add_library(
     STATIC
     utils/utils.cpp
     utils/utils.hpp
+    utils/event_queue.hpp
+    utils/event_queue.cpp
     utils/bluetoothdef.hpp
 )
 
