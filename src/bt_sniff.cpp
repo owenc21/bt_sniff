@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <algorithm>
 #include <vector>
+#include <queue>
+#include <atomic>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <bluetooth/bluetooth.h>
@@ -104,14 +106,16 @@ int BT_Sniff::initialize(){
 
 
 int BT_Sniff::start_le_scan(
-    std::shared_ptr<processed_adv_event> usr_evt, const bool& verbose){
+    event_queue& usr_queue, const bool& verbose, const bool& raw){
     /**
      * Begins capturing loop in separate process
      * Does NOT process packet (yet)
      * Does NOT utilizng any IPC (yet)
      * 
-     * @param usr_evt Pointer to processed_adv_event struct to populate for user-space analysis 
+     * @param usr_queue Reference to (atomic) event_queue to enqueue pointers to
+     * processed_adv_event structs
      * @param verbose Boolean flag to enable packet capture from printing to stdout
+     * @param raw   Boolean flag to enable output of raw packet capture data
      * @returns 0 on successful capture loop completion, -1 on error
     */
 
@@ -124,6 +128,7 @@ int BT_Sniff::start_le_scan(
         return -1;
        }
 
+        std::shared_ptr<processed_adv_event> usr_evt = std::make_shared<processed_adv_event>();
         /**
          * Manual filtering of HCI_EVENT_LE_META 
          * TODO: Add advanced filtering logic
@@ -145,17 +150,24 @@ int BT_Sniff::start_le_scan(
                     /* Manual filter of event PDU */
                     if(evt!=ADV_NONCONN_IND && evt!=ADV_DIRECT_IND){
                         process_extended_advertising_report(event, usr_evt, verbose);
+                        
+                        /* Atomic queue require temp local queue to actually enqueue */
+                        non_atom_event_queue temp_queue = usr_queue.load();
+                        temp_queue.push(usr_evt);
+                        usr_queue.store(temp_queue);
                     }
                     event = event + sizeof(event);
                 }
             }
         }
-
-    //    std::cout << std::endl << "Raw packet data: " << std::endl;
-    //    for (int i = 0; i < len; i++) {
-    //         printf("%02x ", (unsigned int)buf[i]);
-    //     }
-    //     std::cout << std::endl; 
+        
+        if(raw){
+            std::cout << std::endl << "Raw packet data: " << std::endl;
+            for (int i = 0; i < len; i++) {
+                printf("%02x ", (unsigned int)buf[i]);
+            }
+            std::cout << std::endl; 
+        }
         
     }
 }
