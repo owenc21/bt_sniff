@@ -8,12 +8,14 @@
 /**
  * @details
  * Struct to encapsulate the processed advertising event
- * @param event	Processed string describing event (PDU)
+ * @param event	Type of event (corresponding to PDU enum)
+ * @param event_s	Processed string describing event (PDU)
  * @param addresss	Processed string of the device address (: sep Hex)
  * @param name	Device name (optional), emptystring if not present
 */
 typedef struct{
-    std::string event;
+	uint8_t event;
+    std::string event_s;
     std::string address;
     std::string name;
 } processed_adv_event;

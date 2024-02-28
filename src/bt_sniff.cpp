@@ -148,6 +148,7 @@ int BT_Sniff::start_le_scan(
                     /* Manual filter of event PDU */
                     if(evt!=ADV_NONCONN_IND && evt!=ADV_DIRECT_IND){
                         process_extended_advertising_report(event, usr_evt, verbose);
+                        usr_evt->event = evt;
                         usr_queue.push(usr_evt);
                     }
                     event = event + sizeof(event);

@@ -175,7 +175,7 @@ void process_extended_advertising_report(
         std::cout << std::endl;
     }
 
-    usr_evt->event = evt_type;
+    usr_evt->event_s = evt_type;
     usr_evt->address = addr;
 
     process_ad(event, usr_evt, verbose);
