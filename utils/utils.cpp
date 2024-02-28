@@ -1,3 +1,7 @@
+/**
+ * Collection of utility funciton implementations
+ * @author Owen Capell
+*/
 #include <iostream>
 #include <string>
 #include <iomanip>

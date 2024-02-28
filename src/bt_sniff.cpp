@@ -1,3 +1,7 @@
+/**
+ * Implementation details for BT_Sniff sniffer class
+ * @author Owen Capell
+*/
 #include <iostream>
 #include <string>
 #include <sstream>
